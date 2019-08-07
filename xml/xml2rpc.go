@@ -134,11 +134,32 @@ func value2Field(value value, field *reflect.Value) error {
 		}
 		s := value.Struct
 		for i := 0; i < len(s); i++ {
-			// Uppercase first letter for field name to deal with
-			// methods in lowercase, which cannot be used
-			field_name := uppercaseFirst(s[i].Name)
-			f := field.FieldByName(field_name)
-			err = value2Field(s[i].Value, &f)
+			typ := field.Type()
+
+			n := ""
+			_, ok := typ.FieldByNameFunc(func(name string) bool {
+				thisField, _ := typ.FieldByName(name)
+				xmlTag := thisField.Tag.Get("xml")
+
+				if xmlTag == s[i].Name {
+					n = name
+					return true
+				}
+
+				if uppercaseFirst(s[i].Name) == name {
+					n = name
+					return true
+				}
+
+				return false
+			})
+
+			if ok {
+				f := field.FieldByName(n)
+				err = value2Field(s[i].Value, &f)
+			} else {
+				err = FaultApplicationError
+			}
 		}
 	case len(value.Array) != 0:
 		a := value.Array

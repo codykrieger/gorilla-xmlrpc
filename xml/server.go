@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/rpc"
 )
@@ -26,6 +27,8 @@ func NewCodec() *Codec {
 
 // Codec creates a CodecRequest to process each request.
 type Codec struct {
+	AutoCapitalizeMethodName bool
+
 	aliases map[string]string
 }
 
@@ -46,6 +49,13 @@ func (c *Codec) NewRequest(r *http.Request) rpc.CodecRequest {
 	if err := xml.Unmarshal(rawxml, &request); err != nil {
 		return &CodecRequest{err: err}
 	}
+
+	if c.AutoCapitalizeMethodName {
+		toks := strings.Split(request.Method, ".")
+		toks[len(toks)-1] = strings.Title(toks[len(toks)-1])
+		request.Method = strings.Join(toks, ".")
+	}
+
 	request.rawxml = string(rawxml)
 	if method, ok := c.aliases[request.Method]; ok {
 		request.Method = method
